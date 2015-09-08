@@ -97,8 +97,8 @@ class Scene:
 
         # If the material is more reflective, the highlight is smaller & more intense
         # but for now, if the angle is above a threshold make it white
-        if spectral < -0.99: 
-            return lerp(lightedcolor, (255,255,255), spectral**2)
+        if spectral < -0.985: 
+            return lerp(lightedcolor, (255,255,255), abs((spectral+0.985)*100)**3)
 
         return lerp((0,0,0), lightedcolor, angle)
 
