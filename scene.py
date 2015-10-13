@@ -40,32 +40,35 @@ class Scene:
 
     def findLightedColor(self, obj, point):
         truecolor = obj.getColor(point)
+        # these two for highlights
         angles = []
         spectralAngles = []
+        # this for brightness
         distances = []
+        # this for intersection tests
+        intersected = [] 
 
         # normal vector
         Vn = obj.normal(point).normalize()
-
         # line to viewer
         Vv = (point - self.camera.translation).normalize()
 
         # Try to draw a line to a light source
         for light in self.lights:
-            ray = euclid.Ray3(point, light.position)
+            ray = euclid.Ray3(point, light.position-point)
             canDoLight = True
             for thing in self.objects:
-                # skip self
-                if thing == obj:
-                    continue
-
-                inter = obj.intersect(ray)
+                inter = thing.intersect(ray)
                 # if it's an intersection, no light!
                 if inter:
-                    canDoLight = False
-                    break
+                    if inter.length > 0.01:
+                        canDoLight = False
+                        intersected.append(True)
+                        break
             # determine the lighted color.
             if canDoLight:
+                intersected.append(False)
+
                 N = obj.normal(point)
                 N.normalize()
                 dot = N.dot(ray.v.normalized())
@@ -83,23 +86,24 @@ class Scene:
                 # get angle between viewer and reflection
                 spectralAngles.append(Reflection.dot(Vv))
 
-        # The greatest angle wins
-        angle = max(angles)
+        shadowed = True
+        for tf in intersected:
+            shadowed &= tf
 
+        if shadowed:
+            return (0,0,0)
+        
+        angle = max(angles) # The greatest angle wins
         distance = min(distances) # smallest distance
-
         # but wait, there's more! Find the spectral lighting angle
         spectral = max(spectralAngles)
-
-
         # lighted color
-        lightedcolor = lerp((0,0,0), truecolor, 7 / distance**2)
+        lightedcolor = truecolor #lerp((0,0,0), truecolor, 7 / distance**2)
 
         # If the material is more reflective, the highlight is smaller & more intense
         # but for now, if the angle is above a threshold make it white
-        if spectral < -0.985: 
+        if spectral < -0.985:
             return lerp(lightedcolor, (255,255,255), abs((spectral+0.985)*100)**3)
-
         return lerp((0,0,0), lightedcolor, angle)
 
     def trace(self, ray, depth=0, previous=None):
@@ -114,10 +118,10 @@ class Scene:
                 hits.append((inter,x))
         # Register the hit on the closest object
         if len(hits) > 0:
-            origin = ray.p
-            closestObj = None
+            origin       = ray.p
+            closestObj   = None
             closestPoint = None
-            closestDist = None
+            closestDist  = None
             for x,obj in hits:
                 if not closestPoint:
                     closestObj = obj
@@ -135,13 +139,15 @@ class Scene:
             # All secondary rays here
             # eg, reflection, refraction...
             # Sum up the colors, then return.
-            color = (255,255,0)
-            return color
+            if closest.
         # hit nothing
         return self.skycolor
 
-                           
+    def refraction(self, ray, depth=0, previous=None):
+        return (255,255,0)
 
+    def reflection(self, ray, depth=0, previous=None):
+        return (255,255,0)
 
     def render(self, filename="out/test.png"):
         img = Image.new('RGB', 
@@ -151,4 +157,3 @@ class Scene:
             color = self.trace(ray)
             pixels[x,y] = floor(color)
         img.save(filename)
-
