@@ -209,10 +209,10 @@ class Scene:
             if roughness < 1.0:
                 ## do reflection
                 #  rotate ray
-                quat = euclid.Quaternion.new_rotate_axis(math.pi, normal)
-                rotatedray = quat * ray
+                dotab = ray.v.dot(normal)
+                rotatedray = ray.copy()
+                rotatedray.v -= normal * dotab * 2
                 rotatedray.p = closestPoint
-                rotatedray.v *= -1
                 # trace!
                 inter = closestObj.intersect(rotatedray)
                 if inter:
