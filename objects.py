@@ -6,11 +6,11 @@ class Light:
         self.size = size
 
 class Collidable:
-    def __init__(self, color=(255,255,0), reflection=0.0, transparency=0.0, refraction=1.0):
+    def __init__(self, color=(255,255,0), roughness=1.0, transparency=0.0, refractionIndex=1.0):
         self.color = color
-        self.reflectionIndex = reflection
+        self.roughness = roughness
         self.transparencyIndex = transparency # 1=perfectly transparent
-        self.refractionIndex = refraction # min 1, max 2.5
+        self.refractionIndex = refractionIndex # min 1, max 2.5
     
     def getColor(self, coords=None):
         return self.color
@@ -18,8 +18,16 @@ class Collidable:
     def getTransparency(self):
         return self.transparencyIndex
 
-    def getReflection(self):
-        return self.reflectionIndex
+    def getReflectionIndex(self):
+        return (1.0 - self.transparencyIndex) * (1 - self.roughness)
+
+    # a perfectly rough object  (1.0) is perfectly diffuse
+    # a perfectly smooth object (0.0) is perfectly reflective
+    def getRoughness(self):
+        return (1.0 - self.transparencyIndex) * self.roughness
+
+    def getRefractionIndex(self):
+        return self.refractionIndex
 
     def intersect(self, ray):
         raise BaseException("Must overload intersect() in class " + type(self).__name__)
@@ -38,9 +46,9 @@ class Collidable:
 
 class CollidableSphere(Collidable):
     def __init__(self, position=euclid.Point3(0.,0.,0.), color=(255,255,0), radius=1.,
-                    reflection=0.0, transparency=0.0, refraction=1.0):
-        super().__init__(color=color, reflection=reflection, transparency=transparency,
-                         refraction=refraction)
+                    roughness=1.0, transparency=0.0, refractionIndex=1.0):
+        super().__init__(color=color, roughness=roughness,
+                         transparency=transparency, refractionIndex=refractionIndex)
         self.position = position
         self.radius = radius
         self.shape = euclid.Sphere(self.position, self.radius)
@@ -57,12 +65,15 @@ class CollidableSphere(Collidable):
     def normal(self, point):
         return point - self.position
 
+    def __repr__(self):
+        x,y,z = self.position.xyz
+        return "CollidableSphere(C<%.2f,%.2f,%.2f> r=%.2f)" % (x, y, z, self.radius)
+
     def __eq__(self, other):
         if type(self) != type(other):
             return False
         A = self.position == other.position
         B = self.radius == other.radius
-
         return A and B
 
     def __ne__(self, other):
