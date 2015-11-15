@@ -2,70 +2,7 @@ import camera
 from PIL import Image
 import euclid
 import math
-
-def clamp(m, x, M):
-    if x < m:
-        return m
-    if x > M:
-        return M
-    return m
-
-def dist(lineseg, point):
-    L1 = abs(point - lineseg.p1)
-    L2 = abs(point - lineseg.p2)
-    return L1 if L1 < L2 else L2 # find the closer of the 2 points
-
-def lerp(color1, color2, t):
-    r1,g1,b1 = color1
-    r2,g2,b2 = color2
-    R = (1.0-t)*r1 + t*r2
-    G = (1.0-t)*g1 + t*g2
-    B = (1.0-t)*b1 + t*b2
-    return (R,G,B)
-
-def colorMultiply(rgb, n):
-    r = rgb[0] * n
-    g = rgb[1] * n
-    b = rgb[1] * n
-    return (r,g,b)
-
-def colorSum(colors):
-    R = G = B = 0.0
-    for color in colors:
-        R += color[0]
-        G += color[1]
-        B += color[2]
-    return (R,G,B)
-
-def colorFloor(color):
-    r = int(color[0])
-    g = int(color[1])
-    b = int(color[2])
-    return (r,g,b)
-
-def weighedAverage(colors, weights):
-    multcolors = []
-    for i in range(len(colors)):
-        multcolors.append(colorMultiply(colors[i], weights[i]))
-    return colorFloor(colorSum(multcolors))
-
-
-def floor(color):
-    return (int(color[0]), int(color[1]), int(color[2]))
-
-def closerPoint(lineseg, point):
-    if isinstance(lineseg, euclid.Point3):
-        return lineseg
-    L1 = abs(point - lineseg.p1)
-    L2 = abs(point - lineseg.p2)
-    return lineseg.p1 if L1 < L2 else lineseg.p2 # find the closer of the 2 points
-
-def furtherPoint(lineseg, point):
-    if isinstance(lineseg, euclid.Point3):
-        return lineseg
-    L1 = abs(point - lineseg.p1)
-    L2 = abs(point - lineseg.p2)
-    return lineseg.p1 if L1 > L2 else lineseg.p2 # find the closer of the 2 points
+from utility import *
 
 class Scene:
     def __init__(self, camera=camera.Camera(), objects=[], lights=[]):
@@ -76,6 +13,7 @@ class Scene:
 
     def findLightedColor(self, obj, point):
         truecolor = obj.getColor(point)
+
         # these two for highlights
         angles = []
         spectralAngles = []
@@ -96,13 +34,19 @@ class Scene:
             for thing in self.objects:
                 inter = thing.intersect(ray)
                 # if it's an intersection, no light!
-                if inter and inter.length > 0.05:
-                    if thing.getTransparency() > 0.0:
-                        continue
-                    else:
-                        canDoLight = False
-                        intersected.append(True)
-                        break
+                if isinstance(inter, euclid.Point3):
+                    if inter:
+                        if thing != obj:
+                            canDoLight=False
+                            intersected.append(True)
+                else:
+                    if inter and inter.length > 0.05:
+                        if thing.getTransparency() > 0.0:
+                            continue
+                        else:
+                            canDoLight = False
+                            intersected.append(True)
+                            break
             # spectral reflection stuff
             if canDoLight:
                 intersected.append(False)
@@ -148,12 +92,14 @@ class Scene:
         hits = []
         for x in self.objects:
             inter = x.intersect(ray)
-            if inter and inter.length > 0.05:
+            if isinstance(inter, euclid.Point3):
+                if inter:
+                    hits.append((inter, x))
+            else:
+                if inter and inter.length > 0.05:
                     hits.append((inter,x))
         # Register the hit on the closest object
         if len(hits) > 0:
-            if len(hits) == 2:
-                1 == 1
             origin       = ray.p
             closestObj   = None
             closestPoint = None
@@ -169,6 +115,9 @@ class Scene:
                         closestDist = distance
                         closestPoint = closerPoint(x, origin)
                         closestObj = obj
+
+            # Dot the closest obj's normal and the ray. If positive, internal reflection,
+            # at least in the case of a sphere.
             # With the closest object, get color or get secondary rays.
             diffuse = self.findLightedColor(closestObj, closestPoint)
             if depth <= 0:
@@ -184,28 +133,26 @@ class Scene:
 
             """
             reflected = (0,0,0)
-            refracted = diffuse
-            refracted_selfcolor = (0,0,0)
             
-            transparency = closestObj.getTransparency()
-            roughness    = (1 - transparency) * closestObj.getRoughness()
-            reflection   = (1 - transparency) * closestObj.getReflectionIndex()
+            roughness    = closestObj.getRoughness()
+            reflection   = closestObj.getReflectionIndex()
             
             normal = closestObj.normal(closestPoint)
             normal.normalize()
 
-            if transparency > 0.0:
+            # disabled because too much effort. perhaps return later.
+            """if transparency > 0.0:
                 # do refraction
-                refractedray = self.refractRay(closestObj, closestPoint, normal, ray)
-                refracted_selfcolor = colorMultiply(diffuse, 1 - transparency)
+                refractedray = self.refractRay(closestObj, closestPoint, normal, ray, depth)
+                refracted_selfcolor = colorMultiply(diffuse, transparency)
                 if not refractedray:
-                    refracted = diffuse
+                    refracted = (255,255,0); #refracted_selfcolor
                 else:
                     refracted = self.trace(refractedray, depth-1)
                 refracted = weighedAverage([refracted, refracted_selfcolor],
                                            [transparency, 1-transparency])
                 #...
-                # sum colors, return true color
+                # sum colors, return true color"""
             if roughness < 1.0:
                 ## do reflection
                 #  rotate ray
@@ -213,47 +160,92 @@ class Scene:
                 rotatedray = ray.copy()
                 rotatedray.v -= normal * dotab * 2
                 rotatedray.p = closestPoint
-                # trace!
                 inter = closestObj.intersect(rotatedray)
                 if inter:
                     direction = rotatedray.v.normalized()
-                    rotatedray.p += direction * inter.length
+                    if isinstance(inter, euclid.Point3):
+                        rotatedray.p = (inter + normal*0.01)
+                    else:
+                        rotatedray.p += direction * inter.length
+                # trace!
                 reflected = self.trace(rotatedray, depth-1)
 
-            return weighedAverage([diffuse, reflected, refracted], 
-                                  [roughness, reflection, transparency])
+            return weighedAverage([diffuse, reflected], 
+                                  [roughness, reflection])
         # hit nothing
         return self.skycolor
 
-    def refractRay(self, obj, intersect, normal, ray):
+    # returns a ray, not a color
+    def trace_internal(self, obj, ray, depth=0):
+        if depth <= 0:
+            return None
+        # First, find the point of incidence
+        inter = obj.intersect(ray)
+        if not inter:
+            return ray
+        point = furtherPoint(inter, ray.p)
+        # Next, reflect
+        normal = -obj.normal(point)
+        normal.normalized()
+        dotab = ray.v.dot(normal)
+        rotatedray = ray.copy()
+        rotatedray.v -= normal * dotab * 2
+        rotatedray.p = point
+        # Find next point of incidence
+        inter = obj.intersect(rotatedray)
+        if not inter:
+            return rotatedray
+        point = furtherPoint(inter, ray.p)
+
+        # Try to rotate from material to air again
+        normal = obj.normal(ray.p)
         cross = normal.cross(ray.v)
-        ray.v.normalize()
-        normal.normalize()
         cross.normalize()
-        angleOfIncidence = math.acos(normal.cross(cross).dot(ray.v)) 
-        n = obj.getRefractionIndex()     
+        n = obj.getRefractionIndex()
         try:
-            # first rotation is air to material.
-            rotateBy = math.asin(math.sin(angleOfIncidence) / n)
-            quat = euclid.Quaternion.new_rotate_axis(rotateBy, cross)
-            ray = quat * ray
-            ray.p = intersect
-            # Next, find the exit point.
-            lineseg = obj.intersect(ray)
-            exit = furtherPoint(lineseg, ray.p)
-            ray.p = exit.copy()
-            # Rotate again, material to air.
-            normal = obj.normal(ray.p)
-            cross = normal.cross(ray.v)
-            cross.normalize()
-            angleOfIncidence = math.acos(normal.cross(cross).dot(ray.v))
+            angleOfIncidence = math.acos(normal.cross(cross).dot(rotatedray.v))
             rotateBy = math.asin(math.sin(angleOfIncidence) * n)
             quat = euclid.Quaternion.new_rotate_axis(rotateBy, cross)
+            rotatedray = quat * rotatedray
+            rotatedray.p = exit
+            return rotatedray
+        except ValueError:
+            return self.trace_internal(obj, rotatedray, depth-1)
+
+
+
+    def refractRay(self, obj, intersect, normal, ray, depth):
+        normal.normalize()
+        ray = ray.copy()
+        ray.v.normalize()
+        rotationAxis = normal.cross(ray.v)
+        #angleOfIncidence = math.acos(normal.cross(rotationAxis).dot(ray.v)) 
+        angleOfIncidence = math.acos(normal.dot(-ray.v))
+        n = obj.getRefractionIndex()
+        # first rotation is air to material.
+        rotateBy = math.asin(math.sin(angleOfIncidence) / n)
+        quat = euclid.Quaternion.new_rotate_axis(rotateBy, rotationAxis)
+        ray = quat * ray
+        ray.v.normalize()
+        ray.p = intersect
+        # Next, find the exit point.
+        lineseg = obj.intersect(ray)
+        exit = furtherPoint(lineseg, ray.p)
+        ray.p = exit.copy()
+        # Rotate again, material to air.
+        normal = obj.normal(ray.p)
+        rotationAxis = normal.cross(ray.v)
+        rotationAxis.normalize()
+        try:
+            angleOfIncidence = math.acos(normal.dot(ray.v))
+            rotateBy = math.asin(math.sin(angleOfIncidence) * n)
+            quat = euclid.Quaternion.new_rotate_axis(rotateBy, rotationAxis)
             ray = quat * ray
             ray.p = exit
             return ray
         except ValueError:
             return None
+            return self.trace_internal(obj, ray, depth-1)
 
         
 
