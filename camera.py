@@ -15,7 +15,7 @@ class Camera:
         self.imagew = imageDim[0]
         self.imageh = imageDim[1]
 
-    def generateRays(self): 
+    def generateRays(self, startline=0, endline=None): 
         """ 
             generate all the rays for the pixels in the screen.
             each ray starts from the camera's position and goes through the screen.
@@ -30,6 +30,8 @@ class Camera:
             actual screen position! don't do complex math if somebody already 
             did it for you
         """
+        if not endline:
+            endline = self.imageh
         A = Point3(self.focallength, 0.5*self.screenw, 0.5*self.screenh)
         B = Point3(self.focallength, 0.5*self.screenw, -0.5*self.screenh)
         # C = Point3(self.focallength, -0.5*self.screenw, -0.5*self.screenh)
@@ -52,7 +54,7 @@ class Camera:
 
         OA = A - self.translation # the first ray. will be modified to find the various rays
         for x in range(self.imagew):
-            for y in range(self.imageh):
+            for y in range(startline, endline):
                 # This is the initial ray for searching for collisions.
                 vector = OA + (0.5 + x) * nx + (0.5 + y) * ny
                 ray = euclid.Ray3(self.translation, vector)

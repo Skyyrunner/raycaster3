@@ -113,9 +113,12 @@ class CollidablePlane(Collidable):
         x = projectvector(coords, self.unitx).y
         y = projectvector(coords, self.unity).z
         x /= self.squaresize
-        y /= self.squaresize
-        x = math.floor(x+0.5)
-        y = math.floor(y+0.5)
+        # y /= self.squaresize
+        x = math.floor(x)
+        y = math.floor(y)
+        # if x % 2 == 0:
+        #     if y % 2 == 0:
+
         if (x+y) % 2 == 0:
             return (0,0,0)
         return (255,255,255)
@@ -136,7 +139,7 @@ class CollidablePlane(Collidable):
 
 
     def __repr__(self):
-        return "CollidablePlane()"
+        return "CollidablePlane"
 
     def __eq__(self, other):
         if type(self) != type(other):

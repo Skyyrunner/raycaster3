@@ -3,6 +3,7 @@ from PIL import Image
 import euclid
 import math
 from utility import *
+import os
 
 class Scene:
     def __init__(self, camera=camera.Camera(), objects=[], lights=[]):
@@ -249,11 +250,27 @@ class Scene:
 
         
 
-    def render(self, depth=1, filename="out/test.png"):
+    def render(self, depth=1, filename="out/test.png", start=0, end=None, tofile=True):
+        # figure out the final image size
+        if not end:
+            end = self.camera.imageh
+        height = end - start
+
         img = Image.new('RGB', 
-            (self.camera.imagew, self.camera.imageh), (0,0,255))
+            (self.camera.imagew, height), (0,0,255))
         pixels = img.load()
-        for ray, x, y in self.camera.generateRays():
+        for ray, x, y in self.camera.generateRays(start, end):
             color = self.trace(ray, depth)
+            y -= start
             pixels[x,y] = floor(color)
-        img.save(filename)
+        if tofile:
+            directory = os.path.dirname(filename) # the directory path
+            filename  = os.path.basename(filename) # the actual test.png part
+            base      = "".join(filename.split(".")[:-1])
+            outfile = ("{base}-img{camera.imagew}.{height}-"
+                       "f{camera.focallength}-screen{camera.screenw}"
+                       ".{camera.screenh}"
+                       ".png").format(camera=self.camera, base=base, height=height)
+            img.save(directory + "/" + outfile)
+        else:
+            return img
