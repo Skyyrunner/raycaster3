@@ -4,11 +4,15 @@ import euclid
 from camera import Camera
 import time
 import sys
+import json
 
-if __name__=="__main__":
-    with open("config") as f:
+def parseconfig(config):
+    data = json.loads(config)
+
+# returns Image object
+def dorender(conffilename, filename=None, start=0, end=None):
+    with open(conffilename) as f:
         config = f.read().split("\n")
-
     objectlist = []
     lights = []
     camera = None
@@ -38,13 +42,18 @@ if __name__=="__main__":
 
     # do raycaster things
     starttime = time.clock()
-    result = myScene.render(depth=depth, start=start, end=end, tofile=False)
+    if filename:
+        myScene.render(depth=depth, start=start, end=end, tofile=True, filename=filename)
+    else:
+        result = myScene.render(depth=depth, start=start, end=end, tofile=False)
     if not end:
         end = camera.imageh
     height = end - start
     endtime = time.clock()
-    pixels = result.load()
-    for y in range(height):
-        print(pixels[0, y])
-    print("Took %.2f seconds for rendering a %dx%d image." % (endtime - starttime,
+    comment = ("Took %.2f seconds for rendering a %dx%d image." % (endtime - starttime,
         camera.imagew, height))
+    return comment, result
+
+
+if __name__=="__main__":
+    dorender("config")

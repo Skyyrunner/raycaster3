@@ -10,7 +10,7 @@ class Scene:
         self.camera = camera
         self.objects = objects
         self.lights = lights
-        self.skycolor = (255,0,0)
+        self.skycolor = (90, 90, 255)
 
     def findLightedColor(self, obj, point):
         truecolor = obj.getColor(point)

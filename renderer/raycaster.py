@@ -24,7 +24,7 @@ if __name__=="__main__":
         i,j = sys.argv[1].split(",")
         i,j = int(i), int(j)
     except:
-        i,j = 256
+        i,j = 256, 256
     camera = Camera(imageDim=(i,j),focallength=3., screenDim=(16,9))
     myScene = Scene(camera=camera, objects=objectlist, lights=lights)
     myScene.skycolor = (90, 90, 255)
