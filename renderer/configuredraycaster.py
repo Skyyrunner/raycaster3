@@ -8,37 +8,46 @@ import json
 
 def parseconfig(config):
     data = json.loads(config)
+    objectlist, lights = [], []
+    for conf in data["objects"]:
+        if conf["type"] == "sphere":
+            posx, posy, posz = conf["position"]
+            r = conf["radius"]
+            col = conf["color"]
+            roughness = conf["roughness"]
+            obj = objects.CollidableSphere(position=euclid.Point3(posx, posy, posz), radius=r,
+                         color=col, roughness=roughness)
+        elif conf["type"] == "plane":
+            orix, oriy, oriz = conf["origin"]
+            normx, normy, normz = conf["normal"]
+            roughness = conf["roughness"]
+            obj = objects.CollidablePlane(origin=euclid.Point3(orix, oriy, oriz)
+                    ,normal=euclid.Vector3(normx, normy, normz),
+                    roughness=roughness)
+        objectlist.append(obj)
+    for conf in data["lights"]:
+        x, y, z = conf
+        lights.append(objects.Light(position=euclid.Point3(x, y, z)))
+    conf = data["camera"]
+    imgw, imgh = conf["imageDim"]
+    scrw, scrh = conf["screenDim"]
+    focal = conf["focallength"]
+    camera = Camera(imageDim=(imgw, imgh),focallength=focal, screenDim=(scrw, scrh))
+    scene = Scene(camera = camera, objects=objectlist, lights=lights)
+    scene.skycolor = tuple(data["skycolor"])
+    depth = data["depth"]
+
+    return camera, depth, lights, objectlist, scene
 
 # returns Image object
 def dorender(conffilename, filename=None, start=0, end=None):
     with open(conffilename) as f:
-        config = f.read().split("\n")
-    objectlist = []
-    lights = []
-    camera = None
-    myScene = None
+        config = f.read()
+    camera, depth, lights, objectlist, myScene = parseconfig(config)
+
     depth = 2
     start = 0
     end = None
-
-    mode = None
-    for thing in config:
-        if thing == "objects":
-            mode = "objects"
-            continue
-        elif thing == "lights":
-            mode = "lights"
-            continue
-        elif thing == "other":
-            mode = "other"
-            continue
-        else:
-            if mode == "objects":
-                objectlist.append(eval(thing))
-            elif mode == "lights":
-                lights.append(eval(thing))
-            elif mode == "other":
-                exec(thing)
 
     # do raycaster things
     starttime = time.clock()
@@ -52,8 +61,11 @@ def dorender(conffilename, filename=None, start=0, end=None):
     endtime = time.clock()
     comment = ("Took %.2f seconds for rendering a %dx%d image." % (endtime - starttime,
         camera.imagew, height))
-    return comment, result
+    try:
+        return comment, result
+    except:
+        return comment
 
 
 if __name__=="__main__":
-    dorender("config")
+    dorender("config.json", filename="test.png")

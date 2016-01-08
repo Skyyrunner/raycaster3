@@ -10,7 +10,7 @@ class Light:
 
 class Collidable:
     def __init__(self, color=(255,255,0), roughness=1.0, transparency=0.0, refractionIndex=1.0):
-        self.color = color
+        self.color = tuple(color)
         self.roughness = roughness
         self.transparencyIndex = transparency # 1=perfectly transparent
         self.refractionIndex = refractionIndex # min 1, max 2.5

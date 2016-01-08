@@ -271,6 +271,9 @@ class Scene:
                        "f{camera.focallength}-screen{camera.screenw}"
                        ".{camera.screenh}"
                        ".png").format(camera=self.camera, base=base, height=height)
-            img.save(directory + "/" + outfile)
+            if directory:
+                img.save(directory + "/" + outfile)
+            else:
+                img.save(outfile)
         else:
             return img
